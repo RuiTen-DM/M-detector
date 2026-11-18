@@ -57,6 +57,7 @@ deque<M3D> buffer_rots;
 deque<V3D> buffer_poss;
 deque<double> buffer_times;
 deque<boost::shared_ptr<PointCloudXYZI>> buffer_pcs;
+deque<double> buffer_pc_times;
 
 // Pose of the LiDAR in the odometry body frame. FAST-LIO publishes /Odometry and
 // /cloud_registered_body in the IMU frame, while M-detector's depth images must be
@@ -64,6 +65,7 @@ deque<boost::shared_ptr<PointCloudXYZI>> buffer_pcs;
 M3D  lidar_in_body_R = M3D::Identity();
 V3D  lidar_in_body_T = V3D::Zero();
 bool use_lidar_extrinsic = false;
+double pair_time_tol = 1e-3;
 
 ros::Publisher pub_pcl_dyn, pub_pcl_dyn_extend, pub_pcl_std; 
 
@@ -102,15 +104,36 @@ void PointsCallback(const sensor_msgs::PointCloud2ConstPtr& msg_in)
         }
     }
     buffer_pcs.push_back(feats_undistort); 
+    buffer_pc_times.push_back(msg_in->header.stamp.toSec());
 }
 
 
 void TimerCallback(const ros::TimerEvent& e)
 {
+    // FAST-LIO stamps the scan and its odometry with the same lidar_end_time: drop
+    // whichever side has no partner instead of pairing the queues blindly by index.
+    while (buffer_pcs.size() > 0 && buffer_times.size() > 0)
+    {
+        double dt = buffer_pc_times.front() - buffer_times.front();
+        if (fabs(dt) <= pair_time_tol) break;
+        if (dt < 0)
+        {
+            ROS_WARN("dynfilter: drop cloud %.6f without odometry", buffer_pc_times.front());
+            buffer_pcs.pop_front();
+            buffer_pc_times.pop_front();
+        }
+        else
+        {
+            buffer_rots.pop_front();
+            buffer_poss.pop_front();
+            buffer_times.pop_front();
+        }
+    }
     if(buffer_pcs.size() > 0 && buffer_poss.size() > 0 && buffer_rots.size() > 0 && buffer_times.size() > 0)
     {
         boost::shared_ptr<PointCloudXYZI> cur_pc = buffer_pcs.at(0);
         buffer_pcs.pop_front();
+        buffer_pc_times.pop_front();
         auto cur_rot = buffer_rots.at(0);
         buffer_rots.pop_front();
         auto cur_pos = buffer_poss.at(0);
@@ -148,6 +171,7 @@ int main(int argc, char** argv)
     vector<double> ext_T, ext_R;
     nh.param<vector<double>>("dyn_obj/lidar_in_body_T", ext_T, vector<double>());
     nh.param<vector<double>>("dyn_obj/lidar_in_body_R", ext_R, vector<double>());
+    nh.param<double>("dyn_obj/pair_time_tol", pair_time_tol, 1e-3);
     if (ext_T.size() == 3)
     {
         lidar_in_body_T << ext_T[0], ext_T[1], ext_T[2];
