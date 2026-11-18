@@ -58,6 +58,12 @@ deque<V3D> buffer_poss;
 deque<double> buffer_times;
 deque<boost::shared_ptr<PointCloudXYZI>> buffer_pcs;
 
+// Pose of the LiDAR in the odometry body frame. FAST-LIO publishes /Odometry and
+// /cloud_registered_body in the IMU frame, while M-detector's depth images must be
+// centred on the LiDAR origin. Default (identity) keeps the original behaviour.
+M3D  lidar_in_body_R = M3D::Identity();
+V3D  lidar_in_body_T = V3D::Zero();
+bool use_lidar_extrinsic = false;
 
 ros::Publisher pub_pcl_dyn, pub_pcl_dyn_extend, pub_pcl_std; 
 
@@ -69,6 +75,12 @@ void OdomCallback(const nav_msgs::Odometry &cur_odom)
     tf::quaternionMsgToEigen(tmp_q, cur_q);
     cur_rot = cur_q.matrix();
     cur_pos << cur_odom.pose.pose.position.x, cur_odom.pose.pose.position.y, cur_odom.pose.pose.position.z;
+    if (use_lidar_extrinsic)
+    {
+        // body pose -> LiDAR pose
+        cur_pos = cur_rot * lidar_in_body_T + cur_pos;
+        cur_rot = cur_rot * lidar_in_body_R;
+    }
     buffer_rots.push_back(cur_rot);
     buffer_poss.push_back(cur_pos);
     lidar_end_time = cur_odom.header.stamp.toSec();
@@ -79,6 +91,16 @@ void PointsCallback(const sensor_msgs::PointCloud2ConstPtr& msg_in)
 {
     boost::shared_ptr<PointCloudXYZI> feats_undistort(new PointCloudXYZI());
     pcl::fromROSMsg(*msg_in, *feats_undistort);
+    if (use_lidar_extrinsic)
+    {
+        // body (IMU) frame -> LiDAR frame
+        const M3D R_lb = lidar_in_body_R.transpose();
+        for (auto &pt : feats_undistort->points)
+        {
+            V3D p_l = R_lb * (V3D(pt.x, pt.y, pt.z) - lidar_in_body_T);
+            pt.x = p_l(0); pt.y = p_l(1); pt.z = p_l(2);
+        }
+    }
     buffer_pcs.push_back(feats_undistort); 
 }
 
@@ -123,6 +145,24 @@ int main(int argc, char** argv)
     nh.param<string>("dyn_obj/odom_topic", odom_topic, "");
     nh.param<string>("dyn_obj/out_file", out_folder,"");
     nh.param<string>("dyn_obj/out_file_origin", out_folder_origin, "");
+    vector<double> ext_T, ext_R;
+    nh.param<vector<double>>("dyn_obj/lidar_in_body_T", ext_T, vector<double>());
+    nh.param<vector<double>>("dyn_obj/lidar_in_body_R", ext_R, vector<double>());
+    if (ext_T.size() == 3)
+    {
+        lidar_in_body_T << ext_T[0], ext_T[1], ext_T[2];
+        use_lidar_extrinsic = true;
+    }
+    if (ext_R.size() == 9)
+    {
+        lidar_in_body_R << ext_R[0], ext_R[1], ext_R[2],
+                           ext_R[3], ext_R[4], ext_R[5],
+                           ext_R[6], ext_R[7], ext_R[8];
+        use_lidar_extrinsic = true;
+    }
+    if (use_lidar_extrinsic)
+        ROS_INFO_STREAM("dynfilter: LiDAR-in-body extrinsic T = " << lidar_in_body_T.transpose()
+                        << ", R =\n" << lidar_in_body_R);
 
     DynObjFilt->init(nh);    
     /*** ROS subscribe and publisher initialization ***/
