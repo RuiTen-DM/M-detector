@@ -47,9 +47,11 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}   ${OpenMP_C_FLAGS}")
 find_package(PythonLibs REQUIRED)
 # find_path(MATPLOTLIB_CPP_INCLUDE_DIRS "matplotlibcpp.h")
 
-set(TBB_DIR "/usr/local/tbb-2019_U8")
-include("/home/huajie/package/oneTBB-2019_U8/cmake/TBBBuild.cmake")
-tbb_build(TBB_ROOT "/home/huajie/package/oneTBB-2019_U8" CONFIG_DIR TBB_DIR)
+# The upstream file built oneTBB-2019_U8 from a hard-coded home directory.
+# Use the system TBB instead (Ubuntu 20.04: libtbb-dev 2020.1 ships TBBConfig.cmake).
+# set(TBB_DIR "/usr/local/tbb-2019_U8")
+# include("/home/huajie/package/oneTBB-2019_U8/cmake/TBBBuild.cmake")
+# tbb_build(TBB_ROOT "/home/huajie/package/oneTBB-2019_U8" CONFIG_DIR TBB_DIR)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
