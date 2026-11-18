@@ -105,6 +105,8 @@ void  DynObjFilter::init(ros::NodeHandle& nh)
     nh.param<int>("dyn_obj/cluster_min_pixel_number", Cluster.cluster_min_pixel_number, 4);
     nh.param<float>("dyn_obj/cluster_thrustable_thresold", Cluster.thrustable_thresold, 0.3f);
     nh.param<float>("dyn_obj/cluster_Voxel_revolusion", Cluster.Voxel_revolusion, 0.3f);
+    nh.param<float>("dyn_obj/cluster_map_range_xy", Cluster.map_range_xy, 200.f);
+    nh.param<float>("dyn_obj/cluster_map_range_z", Cluster.map_range_z, 40.f);
     nh.param<bool>("dyn_obj/cluster_debug_en", Cluster.debug_en, false);
     nh.param<string>("dyn_obj/cluster_out_file", Cluster.out_file, "");
     nh.param<float>("dyn_obj/ver_resolution_max", hor_resolution_max, 0.0025f);

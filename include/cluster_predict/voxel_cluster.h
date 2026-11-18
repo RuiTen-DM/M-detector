@@ -121,6 +121,14 @@ public:
         xyz_origin = xyz_origin_in;
     }
 
+    bool inGrid(const PointType &p) const
+    {
+        const float ex = Grid_edge_size_xy * Voxel_revolusion, ez = Grid_edge_size_z * Voxel_revolusion;
+        return p.x >= xyz_origin(0) && p.x < xyz_origin(0) + ex &&
+               p.y >= xyz_origin(1) && p.y < xyz_origin(1) + ex &&
+               p.z >= xyz_origin(2) && p.z < xyz_origin(2) + ez;
+    }
+
     void setExtendRange(int range)
     {
         max_range = range;
@@ -142,7 +150,8 @@ public:
             tmp.intensity = 0;
             // VOXEL voxel(floor(tmp.x/Voxel_revolusion), floor(tmp.y/Voxel_revolusion), floor(tmp.z/Voxel_revolusion));
             int position = floor((tmp.x - xyz_origin(0))/Voxel_revolusion) * Grid_edge_size_xy * Grid_edge_size_z + floor((tmp.y - xyz_origin(1))/Voxel_revolusion) * Grid_edge_size_z + floor((tmp.z- xyz_origin(2))/Voxel_revolusion);
-            if(position < 0 || position > Grid_edge_size_xy* Grid_edge_size_xy* Grid_edge_size_z) continue;
+            if(position < 0 || position >= Grid_edge_size_xy* Grid_edge_size_xy* Grid_edge_size_z) continue;
+            if(!inGrid(tmp)) continue;
             if (umap_in[position].points_num > 0)
             {
                 // umap[voxel].cloud.push_back(tmp);
@@ -172,7 +181,8 @@ public:
             tmp.z = points_.points[i].z;
             tmp.intensity = 0;
             int position = floor((tmp.x - xyz_origin(0))/Voxel_revolusion) * Grid_edge_size_xy * Grid_edge_size_z + floor((tmp.y - xyz_origin(1))/Voxel_revolusion) * Grid_edge_size_z + floor((tmp.z - xyz_origin(2))/Voxel_revolusion);
-            if(position < 0 || position > Grid_edge_size_xy* Grid_edge_size_xy* Grid_edge_size_z) continue;
+            if(position < 0 || position >= Grid_edge_size_xy* Grid_edge_size_xy* Grid_edge_size_z) continue;
+            if(!inGrid(tmp)) continue;
             if (umap_in[position].points_num > 0)
             {   
                 umap_in[position].cloud->push_back(tmp);
@@ -207,7 +217,8 @@ public:
             tmp.y = points_.points[i].y;
             tmp.z = points_.points[i].z;
             int position = floor((tmp.x - xyz_origin(0))/Voxel_revolusion) * Grid_edge_size_xy * Grid_edge_size_z + floor((tmp.y - xyz_origin(1))/Voxel_revolusion) * Grid_edge_size_z + floor((tmp.z - xyz_origin(2))/Voxel_revolusion);
-            if(position < 0 || position > Grid_edge_size_xy* Grid_edge_size_xy* Grid_edge_size_z) continue;
+            if(position < 0 || position >= Grid_edge_size_xy* Grid_edge_size_xy* Grid_edge_size_z) continue;
+            if(!inGrid(tmp)) continue;
             if (umap.count(position))
             {   
                 umap[position]->cloud->push_back(tmp);

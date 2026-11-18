@@ -12,8 +12,9 @@ void DynObjCluster::Init()
     // pub_ground_points = pub_ground_points_in;
     // xyz_origin << -20., -20., -20.;
     // maprange << 40., 40., 40.;
-    xyz_origin << -100., -100., -20.;
-    maprange << 200., 200., 40.;
+    // upstream hard-coded 200 x 200 x 40 m; configurable via dyn_obj/cluster_map_range_xy|z
+    xyz_origin << -0.5f * map_range_xy, -0.5f * map_range_xy, -0.5f * map_range_z;
+    maprange << map_range_xy, map_range_xy, map_range_z;
     GridMapedgesize_xy = ceil(maprange(0) / Voxel_revolusion);
     GridMapedgesize_z = ceil(maprange(2) / Voxel_revolusion);
     GridMapsize = GridMapedgesize_xy * GridMapedgesize_xy * GridMapedgesize_z;
@@ -238,7 +239,7 @@ void DynObjCluster::PubClusterResult_voxel(std::vector<int> &dyn_tag, std_msgs::
                 {    
                     kk += (k%2 ? 1:-1) * k;
                     int voxel = voxel_center + ii * GridMapedgesize_xy * GridMapedgesize_z + jj * GridMapedgesize_z + kk;
-                    if(voxel < 0 || voxel > GridMapsize) continue;
+                    if(voxel < 0 || voxel >= GridMapsize) continue;
                     XYZExtract(voxel, xyz);
                     Eigen::Vector3f voxel_loc(xyz(0) + 0.5f * Voxel_revolusion, xyz(1) + 0.5f * Voxel_revolusion, xyz(2) + 0.5f * Voxel_revolusion);
                     if (umap[voxel].points_num == 0 && !((voxel_loc(0) > min.x && voxel_loc(0) < max.x) && (voxel_loc(1) > min.y && voxel_loc(1) < max.y) && (voxel_loc(2) > min.z && voxel_loc(2) < max.z)))
@@ -268,8 +269,13 @@ void DynObjCluster::PubClusterResult_voxel(std::vector<int> &dyn_tag, std_msgs::
     {
         if (dyn_tag[ite] == -1)
             continue;
+        // skip points outside the grid instead of letting the flattened index alias
+        if (raw_point[ite].x < xyz_origin(0) || raw_point[ite].x >= xyz_origin(0) + maprange(0) ||
+            raw_point[ite].y < xyz_origin(1) || raw_point[ite].y >= xyz_origin(1) + maprange(1) ||
+            raw_point[ite].z < xyz_origin(2) || raw_point[ite].z >= xyz_origin(2) + maprange(2))
+            continue;
         int voxel = floor((raw_point[ite].x - xyz_origin(0)) / Voxel_revolusion) * GridMapedgesize_xy * GridMapedgesize_z + floor((raw_point[ite].y - xyz_origin(1)) / Voxel_revolusion) * GridMapedgesize_z + floor((raw_point[ite].z - xyz_origin(2)) / Voxel_revolusion);
-        if (voxel < 0 || voxel > GridMapsize)
+        if (voxel < 0 || voxel >= GridMapsize)
         {
             continue;
         }
@@ -714,7 +720,7 @@ void DynObjCluster::event_extend(const Eigen::Matrix3f &R, bool ground_detect,
             for (int ind = 0; ind < 6; ind++)
             {
                 int voxel_neighbor = voxel_cur + x_ind[ind] * GridMapedgesize_xy * GridMapedgesize_z + y_ind[ind] * GridMapedgesize_z + z_ind[ind];
-                if (voxel_neighbor < 0 || voxel_neighbor > GridMapsize)
+                if (voxel_neighbor < 0 || voxel_neighbor >= GridMapsize)
                     continue;
                 if ((umap_insidebox[voxel_neighbor].bbox_index > -1 && umap_insidebox[voxel_neighbor].points_num > 0 && umap_insidebox[voxel_neighbor].bbox_index == bbox_index) || (umap[voxel_neighbor].points_num > 0 && umap[voxel_neighbor].cloud->size() > 0 && umap[voxel_neighbor].bbox_index == bbox_index))
                 {

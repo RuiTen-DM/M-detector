@@ -69,6 +69,8 @@ public:
     int cluster_extend_pixel = 2;
     int cluster_min_pixel_number = 4;
     float Voxel_revolusion = 0.3f;
+    // sensor-centred clustering grid; memory ~ 3 * 40 B * (range_xy/res)^2 * (range_z/res)
+    float map_range_xy = 200.f, map_range_z = 40.f;
     int time_ind =0;
     double time_total = 0.0, time_total_average =0.0;
     ros::Time cluster_begin;
