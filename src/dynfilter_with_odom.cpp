@@ -67,7 +67,7 @@ V3D  lidar_in_body_T = V3D::Zero();
 bool use_lidar_extrinsic = false;
 double pair_time_tol = 1e-3;
 
-ros::Publisher pub_pcl_dyn, pub_pcl_dyn_extend, pub_pcl_std; 
+ros::Publisher pub_pcl_dyn, pub_pcl_dyn_extend, pub_pcl_std, pub_pcl_static_frame; 
 
 void OdomCallback(const nav_msgs::Odometry &cur_odom)
 {
@@ -156,6 +156,17 @@ void TimerCallback(const ros::TimerEvent& e)
 
         DynObjFilt->filter(cur_pc, cur_rot, cur_pos, cur_time);
         DynObjFilt->publish_dyn(pub_pcl_dyn, pub_pcl_dyn_extend, pub_pcl_std, cur_time);
+        if (pub_pcl_static_frame.getNumSubscribers() > 0)
+        {
+            // per-frame static points in world frame (complement of /m_detector/frame_out)
+            PointCloudXYZI::Ptr steady = DynObjFilt->cluster_coupled ? DynObjFilt->laserCloudSteadObj_clus
+                                                                     : DynObjFilt->laserCloudSteadObj;
+            sensor_msgs::PointCloud2 msg;
+            pcl::toROSMsg(*steady, msg);
+            msg.header.stamp = ros::Time().fromSec(cur_time);
+            msg.header.frame_id = DynObjFilt->frame_id;
+            pub_pcl_static_frame.publish(msg);
+        }
         cur_frame ++;
     }
 }
@@ -193,6 +204,7 @@ int main(int argc, char** argv)
     pub_pcl_dyn_extend = nh.advertise<sensor_msgs::PointCloud2>("/m_detector/frame_out", 10000);  
     pub_pcl_dyn = nh.advertise<sensor_msgs::PointCloud2> ("/m_detector/point_out", 100000);
     pub_pcl_std  = nh.advertise<sensor_msgs::PointCloud2> ("/m_detector/std_points", 100000);   
+    pub_pcl_static_frame = nh.advertise<sensor_msgs::PointCloud2> ("/m_detector/static_points", 100000);
     ros::Subscriber sub_pcl = nh.subscribe(points_topic, 200000, PointsCallback);
     ros::Subscriber sub_odom = nh.subscribe(odom_topic, 200000, OdomCallback);
     ros::Timer timer = nh.createTimer(ros::Duration(0.01), TimerCallback);
