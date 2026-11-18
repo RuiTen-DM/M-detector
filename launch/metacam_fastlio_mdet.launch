@@ -1,0 +1,15 @@
+<launch>
+	<!-- FAST-LIO + M-detector on MetaCam bags, one command:
+	     roslaunch m_detector metacam_fastlio_mdet.launch
+	     rosbag play <metacam>/data/data_*.bag   (only /livox/lidar and /livox/imu are needed)
+	     (red = /m_detector/frame_out dynamic points, colour = /cloud_registered) -->
+	<arg name="rviz" default="true" />
+	<arg name="point_filter_num" default="2" />
+	<include file="$(find fast_lio)/launch/mapping_metacam.launch">
+		<arg name="rviz" value="false" />
+		<arg name="point_filter_num" value="$(arg point_filter_num)" />
+	</include>
+	<include file="$(find m_detector)/launch/detector_metacam.launch">
+		<arg name="rviz" value="$(arg rviz)" />
+	</include>
+</launch>
